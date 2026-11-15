@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Colonizer: Life on Mars</title>
+<style>
+  /* ---------- LOOK: change the colors here ---------- */
+  :root { --sky:#e6f1f9; --panel:#fff; --line:#cfe0ec; --text:#1f2f3d; --muted:#587084;
+          --accent:#d9603b; --accent-dark:#b94c2a; --good:#3f9f74; --warn:#d9961f; --bad:#d9453d; --soft:#f1f7fb; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:linear-gradient(#e6f1f9,#f7e9e1); min-height:100vh; color:var(--text); font-family:"Trebuchet MS","Segoe UI",sans-serif; line-height:1.5; }
+  header { padding:12px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+  h1 { margin:0; font-size:1.7rem; color:var(--accent); } .hr { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  #score { color:var(--muted); font-size:.9rem; }
+  /* illustrated scene */
+  #scene { position:relative; max-width:1100px; height:120px; margin:0 auto 12px; border-radius:14px; overflow:hidden; border:1px solid var(--line); transition:filter 1s; }
+  #scene.storm { filter:sepia(.7) saturate(1.3) brightness(.8); } #scene > svg:first-child { position:absolute; inset:0; }
+  #rover { position:absolute; bottom:6px; left:-70px; z-index:2; animation:drive 30s linear infinite; }
+  #zorp { position:absolute; bottom:8px; right:14%; z-index:2; cursor:pointer; transition:transform .2s; } #zorp:hover { transform:translateY(-10px) rotate(-8deg); }
+  #bubble { position:absolute; bottom:68px; right:calc(14% + 56px); background:#fff; border-radius:12px; padding:6px 10px; font-size:.8rem; max-width:260px; z-index:3; display:none; box-shadow:0 2px 6px rgba(0,0,0,.15); }
+  @keyframes drive { to { left:105%; } }
+  #forecast { background:#e6f1f9; border-left:4px solid #587084; padding:8px 10px; border-radius:6px; margin-bottom:10px; font-size:.86rem; } #forecast.alert { border-left-color:var(--bad); background:#fdeceb; }
+  .ic { width:16px; height:16px; vertical-align:-3px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  main { max-width:1100px; margin:0 auto; padding:0 16px 24px; display:grid; grid-template-columns:1fr 1.3fr 1fr; gap:14px; }
+  @media (max-width:860px) { main { grid-template-columns:1fr; } }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  h2 { margin:0 0 10px; font-size:1.05rem; }
+  .meter { margin-bottom:9px; } .top { display:flex; justify-content:space-between; font-size:.88rem; }
+  .bar { height:12px; background:var(--soft); border:1px solid var(--line); border-radius:6px; overflow:hidden; } .fill { height:100%; transition:width .4s; }
+  .note { font-size:.78rem; color:var(--muted); }
+  .crew { display:flex; gap:8px; align-items:flex-start; margin-bottom:9px; } .av { width:46px; height:46px; flex:none; transition:transform .2s; } .crew:hover .av { transform:rotate(-12deg) scale(1.2); }
+  .cb { flex:1; } .cb label { font-size:.86rem; display:block; } .cb small { color:var(--muted); display:block; font-size:.75rem; }
+  select { width:100%; padding:6px; border-radius:7px; border:1px solid var(--line); background:var(--soft); color:var(--text); font-size:.86rem; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:8px; padding:10px 16px; font-size:.95rem; cursor:pointer; font-family:inherit; }
+  button:hover:not(:disabled) { background:var(--accent-dark); } button:disabled { background:#c9d6df; cursor:not-allowed; }
+  button.small { padding:6px 12px; font-size:.82rem; background:#587084; }
+  button:focus-visible, select:focus-visible, #zorp:focus-visible { outline:3px solid var(--warn); outline-offset:2px; }
+  #endSol { width:100%; font-size:1.05rem; margin-top:4px; }
+  .up { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:9px; font-size:.86rem; } .up small { color:var(--muted); display:block; }
+  #hint { background:#fff6dd; border-left:4px solid var(--warn); padding:8px 10px; border-radius:6px; margin-bottom:10px; font-size:.86rem; }
+  #log { grid-column:1/-1; max-height:200px; overflow-y:auto; font-size:.88rem; } #log p { margin:0 0 5px; }
+  .good { color:var(--good); } .bad { color:var(--bad); } .gold { color:var(--warn); font-weight:bold; }
+  #overlay { position:fixed; inset:0; background:rgba(31,47,61,.55); display:none; align-items:center; justify-content:center; padding:16px; } #overlay.open { display:flex; }
+  #modal { background:#fff; border-radius:14px; padding:22px; max-width:560px; border-top:6px solid var(--accent); max-height:90vh; overflow-y:auto; } #modal h2 { font-size:1.3rem; } #modal button { margin:4px 6px 0 0; }
+  .icon { animation:pop .4s; } .icon svg { width:64px; height:64px; fill:none; stroke:var(--accent); stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; } @keyframes pop { from { transform:scale(.3) rotate(-20deg); } }
+  .fact { background:var(--soft); padding:9px 11px; border-radius:7px; font-size:.88rem; margin:10px 0; } .fact i { color:var(--muted); display:block; font-size:.78rem; }
+  #toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--good); color:#fff; padding:10px 18px; border-radius:20px; opacity:0; transition:opacity .4s; pointer-events:none; }
+  #toast.show { opacity:1; }
+  @media (prefers-reduced-motion:reduce) { * { transition:none !important; animation:none !important; } }
+</style>
+</head>
+<body>
+<header><h1>Colonizer</h1><div class="hr"><span id="solLabel"></span><span id="score"></span><button class="small" id="codexBtn">Codex</button><button class="small" id="muteBtn">Sound: on</button></div></header>
+<div id="scene">
+<svg viewBox="0 0 1100 120" preserveAspectRatio="xMidYMax slice" width="100%" height="100%" aria-hidden="true">
+ <defs><linearGradient id="sk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4d3bb"/><stop offset="1" stop-color="#fbeadb"/></linearGradient></defs>
+ <rect width="1100" height="120" fill="url(#sk)"/>
+ <circle cx="860" cy="42" r="26" fill="#fff3e4"/><circle cx="860" cy="42" r="38" fill="none" stroke="#fff3e4" stroke-width="2" opacity=".7"/><circle cx="860" cy="42" r="52" fill="none" stroke="#fff3e4" stroke-width="1.5" opacity=".4"/>
+ <path d="M0 78C150 58 260 82 400 70S650 52 800 72S1000 60 1100 74V120H0z" fill="#e8b08c"/>
+ <path d="M0 92C120 78 300 100 480 88S800 76 1100 94V120H0z" fill="#d98a62"/>
+ <path d="M0 106C200 96 380 114 600 104S900 98 1100 108V120H0z" fill="#b5593a"/>
+ <g transform="translate(250 66)" fill="#fff" stroke="#1f2f3d" stroke-width="2" stroke-linejoin="round"><path d="M0 0l8-22h16l8 22z"/><path d="M-6 8 4 0M38 8 28 0" fill="none"/><rect x="8" y="-30" width="16" height="8" rx="2" fill="#d9603b"/></g>
+ <path d="M330 80V56" stroke="#1f2f3d" stroke-width="2"/><path d="M330 56l16 5-16 5z" fill="#d9603b"/>
+</svg>
+<svg id="rover" viewBox="0 0 60 34" width="60" height="34" aria-hidden="true"><g stroke="#1f2f3d" stroke-width="2" stroke-linejoin="round"><rect x="6" y="9" width="38" height="11" rx="3" fill="#fff"/><path d="M38 9V3h8v6" fill="#fff"/><circle cx="43" cy="5" r="2.5" fill="#d9603b"/><path d="M12 9 9 2" fill="none"/><circle cx="12" cy="26" r="5" fill="#1f2f3d"/><circle cx="26" cy="26" r="5" fill="#1f2f3d"/><circle cx="40" cy="26" r="5" fill="#1f2f3d"/></g></svg>
+<svg id="zorp" viewBox="0 0 50 60" width="44" height="52" role="button" tabindex="0" aria-label="Poke Zorp the alien"><g stroke="#1f2f3d" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M25 14V5" fill="none"/><circle cx="25" cy="4" r="3" fill="#d9603b"/><ellipse cx="25" cy="34" rx="16" ry="19" fill="#8fd1b1"/><circle cx="19" cy="29" r="5.5" fill="#fff"/><circle cx="31" cy="29" r="5.5" fill="#fff"/><circle cx="20" cy="30" r="2" fill="#1f2f3d"/><circle cx="30" cy="30" r="2" fill="#1f2f3d"/><path d="M19 41c3 3 9 3 12 0" fill="none"/><path d="M16 52v5M34 52v5" fill="none"/></g></svg>
+<span id="bubble"></span></div>
+<main>
+  <section><h2>Colony status</h2><div id="meters"></div></section>
+  <section><h2>Assign your crew</h2><div id="forecast"></div><div id="hint"></div><div id="crew"></div><button id="endSol">End sol</button><p class="note" id="locked"></p></section>
+  <section><h2>Upgrades</h2><div id="ups"></div></section>
+  <section id="log"><h2>Mission log</h2></section>
+</main>
+<div id="overlay"><div id="modal"></div></div><div id="toast"></div>
+
+<script>
+/* =====================================================
+   COLONIZER. The code has 6 parts:
+   1. DATA   2. STATE   3. SOUND   4. SCREEN   5. LOGIC   6. START
+   Real numbers come from published space agency sources (see CODEX).
+   ===================================================== */
+
+/* ---------- 1. DATA ---------- */
+const TOTAL_SOLS = 30;
+const CURRENCY = "blueberries";   // named after the real iron-rich "blueberries" found by the Opportunity rover
+
+const ACTIONS = {
+  rest:      { label:"Rest",                      fx:{ morale:2 } },
+  solar:     { label:"Maintain solar panels",     fx:{ power:14 } },
+  farm:      { label:"Tend the greenhouse",       fx:{ food:14, power:-3 } },
+  water:     { label:"Drill for ice",             fx:{ water:12, power:-4 }, codex:"ice" },
+  oxygen:    { label:"Run the oxygen extractor",  fx:{ oxygen:14, power:-6 }, codex:"oxygen" },
+  shield:    { label:"Reinforce the shelter",     fx:{ shield:12 }, codex:"radiation" },
+  research:  { label:"Do research",               fx:{ disc:2, power:-3 } },
+  explore:   { label:"Explore the surroundings",  fx:{}, note:"a random surprise" },
+  party:     { label:"Throw a party",             fx:{ morale:12, food:-4 } },
+  terraform: { label:"Terraforming experiment",   fx:{ terraform:3, power:-6 }, codex:"terraform" }
+};
+
+// Crew: "best" = specialty (1.5 times stronger; experts 1.75). "trait" = personality power, coded in the action loop.
+const CREW = [
+  { name:"Commander Reyes",   role:"Commander", emoji:"🧑‍✈️", best:"shield",  trait:"leader", traitText:"Natural leader: parties they join add +6 morale." },
+  { name:"Engineer Okafor",   role:"Engineer",  emoji:"🧑‍🔧", best:"solar",   trait:"tinker", traitText:"Tinkerer: solar work sometimes builds a gadget (+1 blueberry)." },
+  { name:"Botanist Tanaka",   role:"Botanist",  emoji:"🧑‍🌾", best:"farm",    trait:"green",  traitText:"Green thumb: farming also cheers everyone up." },
+  { name:"Doctor Singh",      role:"Doctor",    emoji:"🧑‍⚕️", best:"oxygen",  trait:"calm",   traitText:"Calm healer: often treats injuries on the spot." },
+  { name:"Geologist Alvarez", role:"Geologist", emoji:"🧑‍🔬", best:"explore", trait:"lucky",  traitText:"Lucky finder: exploring sometimes turns up an extra blueberry." }
+];
+// Experts join automatically when you meet their requirement. Each adds a mouth to feed, but is stronger.
+const EXPERTS = [
+  { id:"chen",    name:"Roboticist Chen",   role:"Roboticist", emoji:"🧑‍💻", best:"research",  trait:"bots",   traitText:"Helper robots: research earns +1 extra blueberry.", need:"Reach sol 10",                 test:() => S.sol >= 10 },
+  { id:"rossi",   name:"Chef Rossi",        role:"Chef",       emoji:"🧑‍🍳", best:"party",     trait:"feast",  traitText:"Space cuisine: parties cost no food and add morale.", need:"Get morale to 85",          test:() => S.morale >= 85 },
+  { id:"ivanova", name:"Pilot Ivanova",     role:"Pilot",      emoji:"🧑‍🚀", best:"explore",   trait:"scout",  traitText:"Sharp eyes: never hurt while exploring.",            need:"Earn 15 blueberries in total", test:() => S.found >= 15 },
+  { id:"mensah",  name:"Physicist Mensah",  role:"Physicist",  emoji:"🧑‍🎓", best:"terraform", trait:"genius", traitText:"Clever designs: terraforming costs no power.",       need:"Reach 15 terraform progress",  test:() => S.terraform >= 15 }
+];
+
+const NAMES = { power:"power", food:"food", water:"water", oxygen:"oxygen", shield:"shielding", morale:"morale", terraform:"terraform progress", disc:CURRENCY };
+const ICONS = { power:"⚡", food:"🍅", water:"💧", oxygen:"🫁", shield:"🛡️", morale:"😊", terraform:"🌍" };
+const TIPS = { shield:"Real data: radiation on the Martian surface measured about 0.64 millisieverts per day.",
+               oxygen:"Real data: the best oxygen machine on Mars made 12 grams per hour.",
+               terraform:"Real data: air pressure is about 0.6% of Earth's. Melting the polar caps could at best double it.",
+               food:"A sol lasts about 24 hours 39 minutes.", water:"Real data: Mars has lots of ice, but liquid water cannot last on the surface.",
+               power:"Dust storms can block solar panels for weeks.", morale:"Long missions are hard on the mind." };
+const VITALS = ["power","food","water","oxygen","shield","morale"];  // any of these hitting 0 ends the mission
+
+// Hand-drawn line icons (24 by 24 grid). art() makes a big one for pop-ups, ic() a small one for labels.
+const ART = {
+  power:"M13 2 5 14h6l-1 8 9-13h-6z", bolt:"M13 2 5 14h6l-1 8 9-13h-6z", food:"M5 19C5 9 11 4 20 4c0 9-5 15-13 15M5 19l8-8",
+  water:"M12 2C8 8 5 11 5 15a7 7 0 0 0 14 0c0-4-3-7-7-13z", oxygen:"M5 14a4 4 0 1 0 8 0a4 4 0 1 0-8 0M13 7a3 3 0 1 0 6 0a3 3 0 1 0-6 0M12 19a2 2 0 1 0 4 0a2 2 0 1 0-4 0",
+  shield:"M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5z", morale:"M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M8 14c1 3 7 3 8 0M9 9h.01M15 9h.01",
+  terraform:"M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M3 12h18M12 3c4 4 4 14 0 18M12 3c-4 4-4 14 0 18", berry:"M7 14a5 5 0 1 0 10 0a5 5 0 1 0-10 0M12 9V4l3 2M10 13h.01",
+  wind:"M3 8h11a3 3 0 1 0-3-3M3 13h16a3 3 0 1 1-3 3M3 18h8", sun:"M12 8a4 4 0 1 0 .01 0zM12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2",
+  wave:"M4 20l6-6M7 5a12 12 0 0 1 12 12M7 10a7 7 0 0 1 7 7", gift:"M4 10h16v10H4zM3 6h18v4H3zM12 6v14M12 6c-3-4-6-1-3 0M12 6c3-4 6-1 3 0",
+  ice:"M12 2 20 9 12 22 4 9zM4 9h16M12 2l-3 7 3 13 3-13z", wrench:"M15 4a4 4 0 0 0-3 5L4 17l3 3 8-8a4 4 0 0 0 5-3l-3 2-2-2 2-3z",
+  envelope:"M3 6h18v12H3zM3 7l9 7 9-7", meteor:"M16 8a4 4 0 1 0 .01 0zM13 11 3 21M10 9 2 15", box:"M3 8l9-5 9 5v9l-9 5-9-5zM3 8l9 5 9-5M12 13v9",
+  flower:"M12 12a2 2 0 1 0 .01 0zM12 4a3 3 0 0 0 0 6M12 14a3 3 0 0 0 0 6M4 12a3 3 0 0 0 6 0M14 12a3 3 0 0 0 6 0", arch:"M3 21V11a9 9 0 0 1 18 0v10zM8 21v-6a4 4 0 0 1 8 0v6",
+  star:"M12 3l2.5 6 6.5.5-5 4.3 1.6 6.4L12 16.8 6.4 20.2 8 13.8 3 9.5 9.5 9z", cloud:"M7 18a4 4 0 0 1-.5-8A6 6 0 0 1 18 11a3.5 3.5 0 0 1-1 7z",
+  rocket:"M12 2c4 3 5 8 4 13H8c-1-5 0-10 4-13zM8 15l-3 4 4-1M16 15l3 4-4-1M12 9a1.5 1.5 0 1 0 .01 0z"
+};
+const art = n => '<div class="icon"><svg viewBox="0 0 24 24"><path d="' + ART[n] + '"/></svg></div>';
+const ic = n => '<svg class="ic" viewBox="0 0 24 24"><path d="' + ART[n] + '"/></svg>';
+const ART_OF = { "Dust storm":"wind", "Solar flare":"sun", "Strange signal":"wave", "Birthday on Mars":"gift", "Crew argument":"bolt", "Ice vein spotted":"ice", "Equipment failure":"wrench",
+  "Message from Earth":"envelope", "Meteor shower":"meteor", "Mystery crate":"box", "Greenhouse blooms":"flower", "Cave discovered":"arch", "Okafor's secret project":"wrench",
+  "Okafor's invention":"bolt", "Okafor goes quiet":"cloud", "Tanaka's seedling":"flower", "The seedling blooms":"flower", "Doctor Singh's warning":"wave", "Burnout":"wind" };
+// Crew portraits drawn in code: each role has its own suit color and two-letter badge.
+const PAL = { Commander:"#d9603b", Engineer:"#3b82a6", Botanist:"#3f9f74", Doctor:"#8d6cc1", Geologist:"#c9922e", Roboticist:"#5a6b7a", Chef:"#d96a8a", Pilot:"#2f8f9d", Physicist:"#6b7bd9" };
+function face(c) {
+  return '<svg class="av" viewBox="0 0 48 48" aria-hidden="true"><path d="M6 48c0-12 8-17 18-17s18 5 18 17z" fill="' + (PAL[c.role] || "#587084") + '" stroke="#1f2f3d" stroke-width="2"/>' +
+    '<circle cx="24" cy="20" r="13" fill="#f6f1ea" stroke="#1f2f3d" stroke-width="2"/><ellipse cx="24" cy="21" rx="9" ry="7" fill="#1f2f3d"/><path d="M18 19a7 5 0 0 1 8-3" stroke="#9fd0e8" stroke-width="2" fill="none" stroke-linecap="round"/>' +
+    '<circle cx="37" cy="39" r="8" fill="#fff" stroke="#1f2f3d" stroke-width="1.5"/><text x="37" y="42" font-size="8" text-anchor="middle" fill="#1f2f3d" font-weight="bold">' + c.role.slice(0, 2) + "</text></svg>";
+}
+// Mission goals and landing sites. Sites are real places; their starting bonuses are game design, not measured data.
+const GOALS = {
+  sci: { label:"Scientist", text:"Collect 40 blueberries and unlock 7 Codex entries.", test:() => S.found >= 40 && S.codex.length >= 7, prog:() => S.found + "/40 blueberries, " + S.codex.length + "/7 Codex" },
+  ter: { label:"Terraformer", text:"Reach 40 terraform progress.", test:() => S.terraform >= 40, prog:() => S.terraform + "/40" },
+  sur: { label:"Survivor", text:"Finish with every vital meter above 50.", test:() => VITALS.every(k => S[k] > 50), prog:() => VITALS.filter(k => S[k] > 50).length + "/6 meters above 50" }
+};
+const SITES = [
+  { name:"Jezero Crater", text:"An ancient river delta, explored by the Perseverance rover.", fx:{ disc:3, water:10 } },
+  { name:"Gale Crater", text:"A deep crater with a tall layered mountain, explored by the Curiosity rover.", fx:{ disc:2, shield:15 } },
+  { name:"Meridiani Planum", text:"A flat open plain, where the Opportunity rover found blueberries.", fx:{ power:15, morale:5 } }
+];
+const CRATES = [["Food and water", { food:20, water:20 }], ["Spare parts", { power:20, shield:10 }], ["Medical kit", { morale:15, oxygen:10 }],
+  ["Science kit", { disc:4 }], ["Seeds and robots", { terraform:6, food:8 }]];
+
+const UPGRADES = [
+  { key:"solar",  label:"Solar farm",          base:3, fx:{ power:4 } },
+  { key:"dome",   label:"Greenhouse dome",     base:3, fx:{ food:4 } },
+  { key:"drill",  label:"Ice drill",           base:4, fx:{ water:4 } },
+  { key:"plant",  label:"Oxygen plant",        base:4, fx:{ oxygen:4 } },
+  { key:"wall",   label:"Radiation wall",      base:5, fx:{ shield:3 } },
+  { key:"lounge", label:"Recreation dome",     base:4, fx:{ morale:3 } },
+  { key:"engine", label:"Terraforming engine", base:8, fx:{ terraform:1, power:-3 } }
+];
+
+const EXPLORE = [
+  { w:3, fx:{ water:12 },             msg:"found a vein of ice" },
+  { w:3, fx:{ disc:2 },               msg:"collected shiny round pebbles" },
+  { w:2, fx:{ disc:1, morale:4 },     msg:"found a stunning canyon view and a good sample" },
+  { w:2, fx:{},                       msg:"found nothing but dust" },
+  { w:1, fx:{ offline:1, morale:-2 }, msg:"tripped on loose rocks" },
+  { w:1, fx:{ disc:5 },               msg:"discovered an ancient dry riverbed full of treasures" }
+];
+
+// The Mars Codex. Real facts that unlock as you play. Each unlock also gives 1 blueberry.
+const CODEX = {
+  sol:{ icon:"🕒", title:"A day on Mars", src:"NASA Mars facts",
+        text:"One Martian day, called a sol, lasts about 24 hours and 39 minutes. A Martian year is about 687 Earth days." },
+  air:{ icon:"🌫️", title:"Thin, cold air", src:"NASA Mars Fact Sheet (National Space Science Data Center)",
+        text:"The air is about 95% carbon dioxide. Surface pressure averages about 6.4 millibars (it swings from about 4.0 to 8.7 with the seasons), only about 0.6% of Earth's. The average temperature is about -63 degrees Celsius (-81 degrees Fahrenheit)." },
+  gravity:{ icon:"🦘", title:"Light on your feet", src:"NASA Mars Fact Sheet",
+        text:"Gravity on Mars is 3.71 meters per second squared, about 38% of Earth's. Something that feels like 100 kilograms at home feels like about 38 on Mars." },
+  radiation:{ icon:"☢️", title:"Radiation", src:"Hassler and others, Science, December 2013 (Curiosity rover)",
+        text:"Curiosity's radiation detector measured about 0.64 millisieverts per day on the surface and about 1.84 per day on the trip there. A mission with 180 days each way and 500 days on the surface adds up to about 1 sievert, the career limit the European Space Agency uses." },
+  oxygen:{ icon:"🫁", title:"Making air from air", src:"NASA, MOXIE experiment on the Perseverance rover (2021 and 2023)",
+        text:"The Perseverance rover turned Martian carbon dioxide into oxygen. Its first run made 5.4 grams in an hour, about 10 minutes of breathing for an astronaut. At its best it made 12 grams per hour, and over 16 runs it made 122 grams in total, at 98% purity or better." },
+  ice:{ icon:"🧊", title:"Ice, not rivers", src:"Jakosky and Edwards, Nature Astronomy, 2018",
+        text:"Mars has significant amounts of water ice, but the air is too thin and cold for liquid water to stay stable on the surface." },
+  dust:{ icon:"🌪️", title:"Dust storms", src:"NASA Opportunity rover mission pages",
+        text:"Dust storms can grow to cover the whole planet. A global storm in 2018 blocked so much sunlight that the solar-powered Opportunity rover fell silent." },
+  terraform:{ icon:"🌍", title:"Can we terraform Mars?", src:"Jakosky and Edwards, Nature Astronomy, 2018 (sponsored by NASA)",
+        text:"Releasing the easy-to-reach carbon dioxide, such as from the polar ice caps, would only double the air pressure to about 1.2% of Earth's. Roughly Earth-like pressure would be needed for stable liquid water, so the authors concluded terraforming is not possible with present-day technology." },
+  berries:{ icon:"🫐", title:"Blueberries", src:"NASA Opportunity rover mission pages",
+        text:"The Opportunity rover found small, round, iron-rich pebbles on Mars. Scientists nicknamed them blueberries. They are a clue that water once soaked the ground there." }
+};
+
+// Random stories. A choice with "gamble" is a coin flip (p = chance of the good result).
+const EVENTS = [
+  { icon:"🌪️", title:"Dust storm", minSol:3, codex:"dust", text:"A huge dust storm rolls in and blocks the sunlight.",
+    choices:[ { label:"Switch to backup batteries", fx:{ power:-8, morale:-2 }, msg:"The batteries hold, but everyone is tense." },
+              { label:"Ride it out", fx:{ power:-18 }, msg:"The storm drains your power reserves." } ] },
+  { icon:"☀️", title:"Solar flare", minSol:3, codex:"radiation", text:"A burst of radiation from the Sun is heading your way.",
+    choices:[ { label:"Everyone into the shelter", fx:{ shield:-8, morale:-3 }, msg:"Safe, but cramped and cranky." },
+              { label:"Keep working outside", gamble:{ p:.5, good:{ disc:2 }, bad:{ shield:-20, morale:-5 }, yes:"The flare was weak and you got extra work done.", no:"The radiation hits hard and the crew is shaken." } } ] },
+  { icon:"📡", title:"Strange signal", minSol:4, text:"Your radio picks up a faint repeating signal from beyond the hills.",
+    choices:[ { label:"Investigate it", gamble:{ p:.5, good:{ disc:3, morale:6 }, bad:{ power:-10, morale:-3 }, yes:"It is an old lost probe. Its data is a treasure!", no:"A wild goose chase that wastes power." } },
+              { label:"Ignore it", fx:{ morale:-2 }, msg:"The crew wonders what you missed." } ] },
+  { icon:"🎂", title:"Birthday on Mars", minSol:2, text:"It is Botanist Tanaka's birthday, millions of kilometers from home.",
+    choices:[ { label:"Hold a party", fx:{ morale:12, food:-6 }, msg:"A joyful night with cake made from greenhouse crops." },
+              { label:"Skip it", fx:{ morale:-3 }, msg:"The day passes quietly." } ] },
+  { icon:"😤", title:"Crew argument", minSol:4, text:"Two crew members are arguing over who gets the best bunk.",
+    choices:[ { label:"Hold a group talk", fx:{ morale:4 }, msg:"Everyone feels heard." },
+              { label:"Let them cool off", gamble:{ p:.5, good:{ morale:2 }, bad:{ morale:-10 }, yes:"They make up on their own.", no:"The argument spreads to the whole crew." } } ] },
+  { icon:"🧊", title:"Ice vein spotted", minSol:2, codex:"ice", text:"A glint of ice shows in a nearby crater wall.",
+    choices:[ { label:"Dig it up now", fx:{ water:20, power:-6 }, msg:"Fresh water for everyone." },
+              { label:"Study it first", fx:{ disc:2, water:8 }, msg:"Careful sampling teaches you a lot." } ] },
+  { icon:"🔧", title:"Equipment failure", minSol:3, text:"The main airlock is jammed and needs fixing.",
+    choices:[ { label:"Everyone helps repair", fx:{ power:-6, morale:-2 }, msg:"Fixed quickly but tiringly." },
+              { label:"Send one person", fx:{ offline:1 }, msg:"The repair works, but it takes a full day." } ] },
+  { icon:"💌", title:"Message from Earth", minSol:3, text:"A video message arrives from home, delayed by many minutes.",
+    choices:[ { label:"Play it for everyone", fx:{ morale:10 }, msg:"Families, friends and a children's choir. Tears of joy." },
+              { label:"Ask for emergency supplies", gamble:{ p:.6, good:{ food:15, water:10 }, bad:{ morale:-4 }, yes:"Earth agrees to send a cargo ship.", no:"Mission control says supplies are not possible now." } } ] },
+  { icon:"☄️", title:"Meteor shower", minSol:5, text:"Space rocks streak across the sky. The thin air burns up fewer of them than on Earth.",
+    choices:[ { label:"Take cover", fx:{ shield:-5, morale:-2 }, msg:"A noisy night, but no harm done." },
+              { label:"Collect fragments after", gamble:{ p:.5, good:{ disc:3 }, bad:{ shield:-15, offline:1 }, yes:"Rare space metal for your lab!", no:"A late rock crashes nearby and someone is hurt." } } ] },
+  { icon:"📦", title:"Mystery crate", minSol:6, text:"You find an old supply crate half buried in sand.",
+    choices:[ { label:"Open it", gamble:{ p:.7, good:{ food:12, power:12, water:8 }, bad:{ morale:-4 }, yes:"It is full of supplies!", no:"It is empty and slightly creepy." } },
+              { label:"Leave it alone", fx:{}, msg:"You walk away wondering." } ] },
+  { icon:"🌸", title:"Greenhouse blooms", minSol:4, text:"The first flowers open in your greenhouse.",
+    choices:[ { label:"Share a harvest feast", fx:{ food:14, morale:6 }, msg:"A feast under the red sky." },
+              { label:"Save seeds for expansion", fx:{ food:4, terraform:3 }, msg:"The seeds will grow a greener future." } ] },
+  { icon:"🕳️", title:"Cave discovered", minSol:5, text:"The geologist spots a cave mouth in a cliff. Scientists have suggested underground tubes could shelter explorers from radiation.",
+    choices:[ { label:"Explore it", gamble:{ p:.5, good:{ disc:4, shield:10 }, bad:{ offline:1, morale:-3 }, yes:"A natural shelter full of strange rocks!", no:"A rockslide injures someone." } },
+              { label:"Mark it for later", fx:{ disc:1 }, msg:"Saved for another day." } ] },
+  { title:"Okafor's secret project", minSol:5, once:true, text:"Engineer Okafor has been sneaking off to build something from spare parts. They ask for a day off to finish it.",
+    choices:[ { label:"Give them the day", fx:{ morale:2 }, set:"okaforHappy", msg:"Okafor beams. You wonder what they are building." },
+              { label:"Keep everyone on schedule", fx:{ morale:-3 }, set:"okaforUpset", msg:"Okafor nods stiffly and says nothing." } ] },
+  { title:"Okafor's invention", minSol:11, once:true, need:"okaforHappy", text:"Okafor unveils a wind-proof solar mount, and it works beautifully.",
+    choices:[ { label:"Install it everywhere", fx:{ power:25, disc:2 }, msg:"Power surges through the colony. The crew cheers for Okafor." } ] },
+  { title:"Okafor goes quiet", minSol:11, once:true, need:"okaforUpset", text:"Okafor has stopped talking to you, and a few repairs have been slow.",
+    choices:[ { label:"Apologize and listen", fx:{ morale:-2 }, set:"okaforHappy", msg:"Okafor opens up. Things slowly improve." },
+              { label:"Ignore it", fx:{ power:-10, morale:-3 }, msg:"A neglected panel fails. The silence continues." } ] },
+  { title:"Tanaka's seedling", minSol:7, once:true, text:"Botanist Tanaka has grown one tiny, odd-looking seedling from a seed no one planned for.",
+    choices:[ { label:"Give it a spot in the main dome", fx:{ power:-3, morale:3 }, set:"seedling", msg:"The crew gathers around the little green sprout." },
+              { label:"Keep the space for storage", fx:{ food:3 }, msg:"Tanaka sighs and puts the pot away." } ] },
+  { title:"The seedling blooms", minSol:14, once:true, need:"seedling", text:"The little seedling has grown into a bright, flowering plant.",
+    choices:[ { label:"Celebrate with the crew", fx:{ food:20, morale:10, terraform:3 }, msg:"Fruit for everyone and a new idea for terraforming." } ] },
+  { title:"Doctor Singh's warning", minSol:9, once:true, text:"Doctor Singh says the crew is overworked and warns that burnout is coming.",
+    choices:[ { label:"Order a rest day", fx:{ morale:8, power:-4 }, set:"rested", msg:"Everyone sleeps in. The mood lifts." },
+              { label:"Push on", fx:{ disc:1, morale:-5 }, set:"pushed", msg:"Work continues, but tempers are short." } ] },
+  { title:"Burnout", minSol:17, once:true, need:"pushed", text:"The crew you pushed so hard is exhausted. Mistakes are creeping in.",
+    choices:[ { label:"Stop and recover", fx:{ morale:6, food:-6 }, msg:"A forced break helps, but costs supplies." },
+              { label:"Keep going", gamble:{ p:.4, good:{ disc:3 }, bad:{ offline:1, morale:-10, shield:-10 }, yes:"Somehow, it pays off.", no:"A serious accident ends the shift." } } ] }
+];
+
+const JOKES = ["Poke me again. I dare you.", "Dust storms are just Mars doing its laundry.", "You weigh about 38% of your Earth weight here. Best diet ever.",
+  "Your day is 39 minutes longer here. Extra nap time!", "Average temperature: about -63 degrees Celsius. Bring a sweater. Several.",
+  "Mars has two moons named after fear and dread. Cheerful, right?", "A blueberry here is a rock. Do not put it in pancakes.", "I asked for space. They sent me to Mars."];
+
+/* ---------- 2. STATE ---------- */
+let S, best = 0;
+try { best = +localStorage.getItem("colonizerBest") || 0; } catch (e) {}
+function newGame() {
+  S = { sol:1, power:60, food:60, water:60, oxygen:60, shield:50, morale:70, terraform:0, disc:2, found:0, ach:[], up:{}, codex:[], endless:false, flags:{}, seen:[], queue:[], goal:"sur", goalDone:false, stormStart:16 + Math.floor(Math.random() * 7), stormLen:4 + Math.floor(Math.random() * 3),
+        crew: CREW.map(c => ({ ...c, action:"rest", offline:false, skip:false })) };
+  UPGRADES.forEach(u => S.up[u.key] = 0);
+}
+const $ = id => document.getElementById(id);
+const clamp = n => Math.max(0, Math.min(100, Math.round(n)));
+const pick = l => l[Math.floor(Math.random() * l.length)];
+const totalUp = () => UPGRADES.reduce((n, u) => n + S.up[u.key], 0);
+const score = () => S.sol * 10 + S.terraform * 15 + S.found * 5 + totalUp() * 25 + S.ach.length * 50 + S.codex.length * 20 + (S.crew.length - 5) * 40 + (S.goalDone ? 300 : 0);
+const ACHS = [
+  ["First steps", "Survive until sol 5", () => S.sol >= 5], ["Settled in", "Survive until sol 15", () => S.sol >= 15],
+  ["Homesteader", "Own 3 upgrades", () => totalUp() >= 3], ["Curious mind", "Earn 10 " + CURRENCY, () => S.found >= 10],
+  ["Green future", "Reach 25 terraform progress", () => S.terraform >= 25], ["Thriving", "Get every vital meter above 70", () => VITALS.every(k => S[k] > 70)]
+];
+
+/* ---------- 3. SOUND (made with the browser, no files needed) ---------- */
+let AC, muted = false;
+function tone(f, d = .12, type = "square", when = 0, vol = .05) {
+  if (muted) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    const o = AC.createOscillator(), g = AC.createGain(), t = AC.currentTime + when;
+    o.type = type; o.frequency.value = f; o.connect(g); g.connect(AC.destination);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + d); o.start(t); o.stop(t + d);
+  } catch (e) {}
+}
+const run = (fs, d, type) => fs.forEach((f, i) => tone(f, d, type, i * .09));
+const SFX = { click:() => tone(520, .05), good:() => run([523, 659, 784], .15, "triangle"), bad:() => run([300, 220], .22, "sawtooth"),
+              sol:() => run([392, 494, 587, 784], .18, "sine"), win:() => run([523, 659, 784, 1047, 1319], .18, "triangle"), boing:() => run([180, 320, 520], .1, "sine"),
+  act: k => ({ solar:() => run([700, 950], .08, "sine"), farm:() => run([300, 380, 330], .09, "triangle"), water:() => run([620, 480, 360], .08, "sine"),
+    oxygen:() => tone(140, .25, "sawtooth"), shield:() => run([160, 120], .14, "square"), research:() => run([1200, 1500, 1300], .06, "sine"),
+    explore:() => run([220, 200, 220, 200], .06, "square"), party:() => run([523, 659, 784, 659, 784, 1047], .1, "triangle"),
+    terraform:() => run([110, 150, 200], .16, "sawtooth"), rest:() => tone(260, .25, "sine") }[k] || (() => {}))() };
+
+/* ---------- 4. SCREEN ---------- */
+function fxText(fx) {
+  return Object.keys(fx).map(k => k === "offline" ? "a crew member is hurt" : (fx[k] > 0 ? "+" : "") + fx[k] + " " + NAMES[k]).join(", ");
+}
+function drawAll() {
+  $("solLabel").textContent = S.endless ? "Sol " + S.sol + " (endless)" : "Sol " + S.sol + " of " + TOTAL_SOLS;
+  $("score").textContent = "Score " + score() + " | Best " + best;
+  $("meters").innerHTML = "";
+  [...VITALS, "terraform"].forEach(k => {
+    const v = S[k], col = k === "terraform" ? "var(--accent)" : v <= 20 ? "var(--bad)" : v <= 40 ? "var(--warn)" : "var(--good)";
+    const d = document.createElement("div"); d.className = "meter"; d.title = TIPS[k] || "";
+    d.innerHTML = '<div class="top"><span>' + ic(k) + " " + NAMES[k] + "</span><span>" + v + '</span></div><div class="bar"><div class="fill" style="width:' + v + "%;background:" + col + '"></div></div>' +
+      (k === "terraform" ? '<div class="note">Air pressure: ' + (0.6 + v * 0.006).toFixed(2) + "% of Earth's (real start: 0.6%, real polar-cap limit: 1.2%)</div>" : "");
+    $("meters").appendChild(d);
+  });
+  $("crew").innerHTML = "";
+  S.crew.forEach((c, i) => {
+    let opts = "";
+    for (const k in ACTIONS) { const a = ACTIONS[k], e = a.note || fxText(a.fx);
+      opts += '<option value="' + k + '"' + (c.action === k ? " selected" : "") + ">" + a.label + (e ? " (" + e + ")" : "") + (k === c.best ? " - specialty" : "") + "</option>"; }
+    const d = document.createElement("div"); d.className = "crew";
+    d.innerHTML = face(c) + '<div class="cb"><label for="c' + i + '">' + c.name + (c.expert ? " (expert)" : "") + "<small>" + c.traitText + '</small></label><select id="c' + i + '"' + (c.offline ? " disabled" : "") + ">" + (c.offline ? "<option>Recovering today</option>" : opts) + "</select></div>";
+    $("crew").appendChild(d);
+    if (!c.offline) d.querySelector("select").addEventListener("change", e => { c.action = e.target.value; SFX.act(c.action); });
+  });
+  $("locked").textContent = EXPERTS.filter(e => !S.crew.some(c => c.id === e.id)).map(e => "Locked expert: " + e.name + " (" + e.need + ")").join(" | ");
+  $("ups").innerHTML = "<p><b>" + ic("berry") + " " + S.disc + " " + CURRENCY + "</b></p>";
+  UPGRADES.forEach(u => {
+    const cost = u.base * (S.up[u.key] + 1), d = document.createElement("div"); d.className = "up";
+    d.innerHTML = "<span>" + u.label + " (level " + S.up[u.key] + ")<small>Every sol: " + fxText(u.fx) + "</small></span><button " + (S.disc >= cost ? "" : "disabled") + ">Build: " + cost + " " + ic("berry") + "</button>";
+    d.querySelector("button").addEventListener("click", () => buy(u)); $("ups").appendChild(d);
+  });
+  const hints = { 1:"Welcome! Give each crew member one job, then press End sol. Poke the alien Zorp for jokes.", 2:"Specialists are 1.5 times better at their own job, and each crew member has a personality power.",
+                  3:"Earn blueberries by exploring and doing research, then spend them on upgrades. Open the Codex to read real Mars science." };
+  const stormNow = S.sol >= S.stormStart && S.sol < S.stormStart + S.stormLen, untilStorm = S.stormStart - S.sol;
+  let f = stormNow ? "Global dust storm! Solar power is blocked for " + (S.stormStart + S.stormLen - S.sol) + " more sols."
+        : (untilStorm > 0 && untilStorm <= 4) ? "Warning: a global dust storm arrives in " + untilStorm + " sols and lasts about " + S.stormLen + ". Stockpile power!" : "Skies are clear.";
+  if (S.queue.length) f += " Tomorrow's outlook: " + S.queue.map(e => e.title).join(" and ") + ".";
+  $("forecast").innerHTML = f + "<br><b>Goal: " + GOALS[S.goal].label + "</b> (" + GOALS[S.goal].prog() + ")";
+  $("forecast").classList.toggle("alert", stormNow || (untilStorm > 0 && untilStorm <= 4)); $("scene").classList.toggle("storm", stormNow);
+  $("hint").style.display = hints[S.sol] ? "block" : "none"; $("hint").textContent = hints[S.sol] || "";
+  $("codexBtn").textContent = "Codex (" + S.codex.length + "/" + Object.keys(CODEX).length + ")";
+}
+function log(t, cls) { const p = document.createElement("p"); p.textContent = t; if (cls) p.className = cls; $("log").insertBefore(p, $("log").children[1]); }
+function toast(t) { const e = $("toast"); e.textContent = t; e.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove("show"), 3500); }
+function openModal(title, html, buttons) {
+  $("modal").innerHTML = "<h2>" + title + "</h2>" + html;
+  buttons.forEach(b => { const el = document.createElement("button"); el.textContent = b.label;
+    el.addEventListener("click", () => { $("overlay").classList.remove("open"); b.fn && b.fn(); }); $("modal").appendChild(el); });
+  $("overlay").classList.add("open"); $("modal").querySelector("button").focus();
+}
+function say(t) { const b = $("bubble"); b.textContent = t; b.style.display = "block"; clearTimeout(say.t); say.t = setTimeout(() => b.style.display = "none", 5000); }
+function showCodex() {
+  let h = "";
+  for (const id in CODEX) { const c = CODEX[id];
+    h += S.codex.includes(id) ? '<div class="fact"><b>' + c.title + "</b><br>" + c.text + "<i>Source: " + c.src + "</i></div>" : '<div class="fact">Locked: keep playing to unlock this entry.</div>'; }
+  h += '<p class="note">All numbers come from published space agency and scientific sources. This game is not endorsed by NASA. Game meters use a simple 0 to 100 scale.</p>';
+  openModal("Mars Codex", h, [{ label:"Close" }]);
+}
+
+/* ---------- 5. LOGIC ---------- */
+function unlock(id) {
+  if (S.codex.includes(id)) return;
+  S.codex.push(id); S.disc++;
+  log("Codex unlocked: " + CODEX[id].title + " (+1 blueberry)", "gold"); toast("Codex: " + CODEX[id].title + "!"); SFX.good();
+}
+function markOffline() {
+  const doc = S.crew.find(x => x.trait === "calm" && !x.offline);
+  if (doc && Math.random() < .5) { log("Doctor Singh treated the injury right away.", "good"); return; }
+  const c = pick(S.crew.filter(x => !x.offline)); if (c) c.offline = true;
+}
+function applyFx(fx, m = 1) {
+  for (const k in fx) {
+    const v = fx[k];
+    if (k === "offline") { markOffline(); continue; }
+    const d = v > 0 ? Math.round(v * m) : v;
+    if (k === "disc") { S.disc = Math.max(0, S.disc + d); if (d > 0) { S.found += d; unlock("berries"); } } else S[k] = clamp(S[k] + d);
+  }
+}
+const deadMeter = () => VITALS.find(k => S[k] <= 0);
+function buy(u) {
+  const cost = u.base * (S.up[u.key] + 1); if (S.disc < cost) return;
+  S.disc -= cost; S.up[u.key]++; log("Built: " + u.label + " (level " + S.up[u.key] + ")", "good"); toast(u.label + " built!"); SFX.good(); checkAch(); drawAll();
+}
+function checkAch() {
+  if (S.sol >= 3) unlock("gravity");
+  ACHS.forEach(a => { if (!S.ach.includes(a[0]) && a[2]()) { S.ach.push(a[0]); S.morale = clamp(S.morale + 5);
+    log("Milestone: " + a[0] + " (" + a[1] + "). Bonus: +50 score, +5 morale", "gold"); toast("Milestone: " + a[0] + "!"); SFX.win(); } });
+  EXPERTS.forEach(e => { if (!S.crew.some(c => c.id === e.id) && e.test()) { S.crew.push({ ...e, expert:true, action:"rest", offline:false, skip:false });
+    log("Expert arrived: " + e.name + "! " + e.traitText, "gold"); toast(e.name + " joins the colony!"); SFX.win(); } });
+}
+
+function endSol() {
+  SFX.sol();
+  S.crew.forEach(c => { c.skip = c.offline; c.offline = false; });
+  log("--- Sol " + S.sol + " ---", "gold");
+  const storm = S.sol >= S.stormStart && S.sol < S.stormStart + S.stormLen;
+  if (storm) log("Dust storm: the solar panels are blocked.", "bad");
+  const order = [...S.crew].sort((a, b) => (b.action === "solar") - (a.action === "solar"));
+  for (const c of order) {
+    if (c.skip) { log(c.name + " was recovering."); c.action = "rest"; continue; }
+    const a = ACTIONS[c.action], m = (c.action === c.best) ? (c.expert ? 1.75 : 1.5) : 1;
+    if (a.fx.power < 0 && S.power + a.fx.power < 0) { log(c.name + " could not " + a.label.toLowerCase() + ": not enough power.", "bad"); continue; }
+    if (a.codex) unlock(a.codex);
+    if (c.action === "explore") {
+      const pool = []; EXPLORE.forEach(o => { for (let i = 0; i < o.w; i++) pool.push(o); });
+      const o = pick(pool); let fx = o.fx; if (fx.offline && c.trait === "scout") fx = {};
+      applyFx(fx, m); log(c.name + " explored and " + o.msg + (fxText(fx) ? " (" + fxText(fx) + ")" : "") + ".");
+    } else { applyFx(storm && c.action === "solar" ? {} : a.fx, m); if (c.action !== "rest") log(c.name + ": " + a.label + "."); }
+    // personality powers
+    const T = c.trait, act = c.action;
+    if (T === "leader" && act === "party") applyFx({ morale:6 });
+    if (T === "tinker" && act === "solar" && Math.random() < .25) { applyFx({ disc:1 }); log(c.name + " built a gadget from spare parts (+1 blueberry).", "good"); }
+    if (T === "green" && act === "farm") applyFx({ morale:2 });
+    if (T === "bots" && act === "research") applyFx({ disc:1 });
+    if (T === "feast" && act === "party") applyFx({ morale:4, food:4 });
+    if (T === "genius" && act === "terraform") applyFx({ power:6 });
+    if (T === "lucky" && act === "explore" && Math.random() < .3) { applyFx({ disc:1 }); log(c.name + " spotted an extra blueberry!", "good"); }
+  }
+  // daily needs grow with time and with each extra crew member
+  const extra = S.crew.length - 5;
+  applyFx({ power:-(8 + Math.floor(S.sol / 8)), food:-(7 + Math.floor(S.sol / 10) + extra), water:-(5 + extra), oxygen:-(7 + Math.floor(S.sol / 10) + extra), shield:-3, morale:-2 });
+  UPGRADES.forEach(u => { if (S.up[u.key] && !(storm && u.key === "solar")) { const f = {}; for (const k in u.fx) f[k] = u.fx[k] * S.up[u.key]; applyFx(f); } });
+  S.sol++;
+  if (S.sol === S.stormStart + S.stormLen) { applyFx({ morale:10, disc:3 }); log("The great dust storm has passed! +10 morale, +3 blueberries.", "gold"); toast("You survived the dust storm!"); SFX.win(); }
+  checkAch(); drawAll();
+  if (deadMeter()) return endGame(deadMeter());
+  if (S.sol > TOTAL_SOLS && !S.endless) return winGame();
+  const list = S.queue; S.queue = rollEvents(); drawAll();
+  const go = () => runEvents(list);
+  if (S.sol % 8 === 0) return supply(go);
+  go();
+}
+// Tomorrow's events are rolled today, so the forecast can warn you.
+function rollEvents() {
+  const list = [], chance = Math.min(0.85, 0.3 + S.sol * 0.015);
+  const ok = EVENTS.filter(e => e.minSol <= S.sol && (!e.need || S.flags[e.need]) && !(e.once && S.seen.includes(e.title)));
+  if (ok.length && Math.random() < chance) list.push(pick(ok));
+  if (S.sol > 12 && ok.length > 1 && Math.random() < 0.25) { const e2 = pick(ok); if (!list.includes(e2)) list.push(e2); }
+  return list;
+}
+function supply(next) {
+  const opts = [...CRATES].sort(() => Math.random() - .5).slice(0, 3);
+  openModal("Supply ship from Earth", art("box") + "<p>A cargo ship has landed. You can unpack only one crate before it leaves.</p>",
+    opts.map(o => ({ label:o[0] + " (" + fxText(o[1]) + ")", fn:() => { applyFx(o[1]); log("Supply crate: " + o[0] + ".", "good"); SFX.good(); checkAch(); drawAll(); next(); } })));
+}
+function runEvents(list) {
+  if (!list.length) return drawAll();
+  const ev = list.shift(); if (ev.codex) unlock(ev.codex); if (ev.once) S.seen.push(ev.title); SFX.boing();
+  openModal(ev.title, art(ART_OF[ev.title] || "star") + "<p>" + ev.text + "</p>", ev.choices.map(c => ({ label:c.label + (c.gamble ? " (risky)" : ""), fn:() => resolve(ev, c, list) })));
+}
+function resolve(ev, c, rest) {
+  let fx = c.fx, msg = c.msg;
+  if (c.gamble) { const win = Math.random() < c.gamble.p; fx = win ? c.gamble.good : c.gamble.bad; msg = win ? c.gamble.yes : c.gamble.no; }
+  if (c.set) S.flags[c.set] = true; applyFx(fx); log(ev.title + ": " + msg + (fxText(fx) ? " (" + fxText(fx) + ")" : ""));
+  const net = Object.keys(fx).reduce((n, k) => n + (k === "offline" ? -5 : fx[k]), 0); net >= 0 ? SFX.good() : SFX.bad();
+  checkAch(); drawAll();
+  if (deadMeter()) return endGame(deadMeter());
+  openModal("What happened", art(net >= 0 ? "star" : "cloud") + "<p>" + msg + "</p><p><b>" + (fxText(fx) || "No change") + "</b></p>", [{ label:"Continue", fn:() => runEvents(rest) }]);
+}
+
+const REAL = '<div class="fact"><b>The real challenge:</b> Melting the polar caps would only double the air pressure to about 1.2% of Earth\'s. A study sponsored by the space agency (Jakosky and Edwards, 2018) concluded terraforming Mars is not possible with present-day technology. Early colonies would focus on survival, as you did.</div>';
+function report() {
+  return '<div class="fact"><b>Mission report:</b> Your crew absorbed about ' + ((S.sol - 1) * 0.64).toFixed(1) + " millisieverts of radiation (the real surface rate is about 0.64 per day). Air pressure reached " + (0.6 + S.terraform * 0.006).toFixed(2) + "% of Earth's (it started at about 0.6%). Codex entries: " + S.codex.length + "/" + Object.keys(CODEX).length + ".</div>";
+}
+function saveBest() { if (score() > best) { best = score(); try { localStorage.setItem("colonizerBest", best); } catch (e) {} } }
+function endGame(cause) {
+  saveBest(); drawAll(); SFX.bad();
+  const why = { power:"The colony ran out of power.", food:"The colony ran out of food.", water:"The colony ran out of water.", oxygen:"The crew ran out of breathable air.", shield:"The radiation shelter failed.", morale:"The crew lost all hope and refused to continue." };
+  openModal("Mission failed", art("wind") + '<p>You lasted until sol ' + (S.sol - 1) + ". " + why[cause] + " Final score: <b>" + score() + "</b>.</p>" + report() + REAL, [{ label:"Try again", fn:startMission }]);
+}
+function winGame() {
+  S.goalDone = GOALS[S.goal].test(); saveBest(); drawAll(); SFX.win();
+  const rank = S.terraform >= 40 ? "Pioneer: a real step toward a living Mars!" : S.terraform >= 20 ? "Settler: a stable, growing colony." : "Survivor: everyone made it. Try more terraforming next time.";
+  openModal("Mission complete!", art("star") + '<p>Your crew survived ' + TOTAL_SOLS + " sols. " + rank + " Score: <b>" + score() + "</b>.</p><p>Goal (" + GOALS[S.goal].label + "): " + (S.goalDone ? "achieved! +300 score." : "not reached this time.") + "</p>" + report() + REAL,
+    [{ label:"Keep playing (endless mode)", fn:() => { S.endless = true; drawAll(); } }, { label:"Play again", fn:startMission }]);
+}
+
+/* ---------- 6. START ---------- */
+function startMission() {
+  newGame(); $("log").innerHTML = "<h2>Mission log</h2>"; unlock("sol"); unlock("air"); drawAll();
+  openModal("Choose your mission goal", art("star") + "<p>" + Object.values(GOALS).map(g => "<b>" + g.label + ":</b> " + g.text).join("<br>") + "</p>",
+    Object.keys(GOALS).map(k => ({ label:GOALS[k].label, fn:() => { S.goal = k; pickSite(); } })));
+}
+function pickSite() {
+  openModal("Choose your landing site", art("arch") + "<p>" + SITES.map(x => "<b>" + x.name + ":</b> " + x.text).join("<br>") + '</p><p class="note">These are real places, but the starting bonuses are game design, not measured data.</p>',
+    SITES.map(x => ({ label:x.name, fn:() => { applyFx(x.fx); log("Landed at " + x.name + ". " + fxText(x.fx) + ".", "good"); drawAll(); say("Welcome to Mars! I am Zorp. Poke me for jokes."); SFX.good(); } })));
+}
+function prologue() {
+  newGame(); drawAll();
+  openModal("Prologue: Touchdown", art("rocket") + '<p>The lander settles into the red dust. You lead a crew of five, millions of kilometers from home. Nobody has ever lived here before.</p>', [{ label:"Next", fn:() =>
+    openModal("Your mission", "<p>Survive and build a colony. Explore, research, party and farm. Collect " + CURRENCY + " to build upgrades, unlock expert crew members and fill your Mars Codex with real science.</p>", [{ label:"Next", fn:() =>
+      openModal("How to play", "<p>Each sol, give every crew member a job and press End sol. Keep <b>power, food, water, oxygen, shielding and morale</b> above zero. Every game is different!</p>", [{ label:"Start mission", fn:startMission }]) }]) }]);
+}
+document.addEventListener("click", e => { if (e.target.closest("button")) SFX.click(); });
+$("endSol").addEventListener("click", endSol);
+$("codexBtn").addEventListener("click", showCodex);
+$("muteBtn").addEventListener("click", e => { muted = !muted; e.target.textContent = "Sound: " + (muted ? "off" : "on"); });
+$("zorp").addEventListener("click", () => { say(pick(JOKES)); SFX.boing(); });
+$("zorp").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); say(pick(JOKES)); SFX.boing(); } });
+prologue();
+</script>
+</body>
+</html>
